@@ -190,3 +190,4 @@ boolean workerStarted = false;                                                  
         return workerStarted;
     }
 ```
+![image](https://github.com/niushihao/morningglory/blob/master/imange/addWorker.png)
