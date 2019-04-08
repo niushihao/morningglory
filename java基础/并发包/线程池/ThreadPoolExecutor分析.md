@@ -75,3 +75,116 @@ Integer integer = future.get();
         1.void execute(Runnable command)                                                处理无返回值的任务
         2.<T> Future<T> submit(Callable<T> task)                                        处理有返回值的任务返回Future对象
         3.<T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)        批量处理有返回值的任务，返回任务执行后的结果，其实就是在内部帮我们循环调用了future.get()方法。
+        这里只介绍submit方式的提交，其他方式差异不大。
+   #### 2.2.2 提交任务
+   ```
+   /**
+     * @throws RejectedExecutionException {@inheritDoc}
+     * @throws NullPointerException       {@inheritDoc}
+     */
+    public <T> Future<T> submit(Callable<T> task) {
+        if (task == null) throw new NullPointerException();
+        RunnableFuture<T> ftask = newTaskFor(task);
+        execute(ftask);
+        return ftask;
+    }
+
+   ```
+   先将callable或者runable类型的任务统一转换成RunableFuture对象，转化后执行核心逻辑execute(ftask),也就是执行任务。
+   #### 2.2.3 执行流程
+   ```
+   public void execute(Runnable command) {
+        if (command == null)                                    1.任务不能为空
+            throw new NullPointerException();
+        int c = ctl.get();                                      2.workerCountOf(c)获取线程池中活跃的线程数
+        if (workerCountOf(c) < corePoolSize) {
+            if (addWorker(command, true))                       3.如果当前线程数小于核心线程数，则执行addWorker(command, true)方法
+                return;
+            c = ctl.get();
+        }
+        if (isRunning(c) && workQueue.offer(command)) {         4.如果线程池是运行状态，尝试向队列中放任务
+            int recheck = ctl.get();
+            if (! isRunning(recheck) && remove(command))        5.双重校验
+                reject(command);                                6.异常处理，由初始化线程池时指定的异常处理策略处理改任务
+            else if (workerCountOf(recheck) == 0)
+                addWorker(null, false);                         7.执行addWorker(null, false)方法
+        }
+        else if (!addWorker(command, false))                    8.如果上边都不能满足，说明线程池中活跃的线程数以超过核心线程数，而且队列也满了
+            reject(command);                                    9.异常处理，由初始化线程池时指定的异常处理策略处理改任务
+    }
+
+   ```
+可以看到这段代码主要分了三部分判断
+1. 活跃的线程数小于核心线程数，直接调用addWorker
+2. 活跃的线程数大于核心线程数，队列没有满调用workQueue.offer
+3. 活跃的线程数大于核心线程数，队列满了调用addWorker
+到这我们应该大概了解了每个参数的作用。
+#### 2.2.4 创建任务执行者
+```
+private boolean addWorker(Runnable firstTask, boolean core) {
+        retry:
+        for (;;) {                                                                      1.开启死循环
+            int c = ctl.get();
+            int rs = runStateOf(c);                                                     2.获取当前线程池的运行状态，如果已经shutdown就不在处理新任务
+
+            // Check if queue empty only if necessary.
+            if (rs >= SHUTDOWN &&
+                ! (rs == SHUTDOWN &&
+                   firstTask == null &&
+                   ! workQueue.isEmpty()))
+                return false;
+
+            for (;;) {
+                int wc = workerCountOf(c);                                              3.根据参数core 校验线程数
+                if (wc >= CAPACITY ||
+                    wc >= (core ? corePoolSize : maximumPoolSize))
+                    return false;
+                if (compareAndIncrementWorkerCount(c))                                  4.cas 将活跃线程数加1
+                    break retry;
+                c = ctl.get();  // Re-read ctl
+                if (runStateOf(c) != rs)
+                    continue retry;
+                // else CAS failed due to workerCount change; retry inner loop
+            }
+        }
+
+boolean workerStarted = false;                                                          5.设置初始标记
+        boolean workerAdded = false;
+        Worker w = null;
+        try {
+            w = new Worker(firstTask);                                                  6.创建worker
+            final Thread t = w.thread;
+            if (t != null) {
+                final ReentrantLock mainLock = this.mainLock;
+                mainLock.lock();
+                try {
+                    // Recheck while holding lock.
+                    // Back out on ThreadFactory failure or if
+                    // shut down before lock acquired.
+                    int rs = runStateOf(ctl.get());
+
+                    if (rs < SHUTDOWN ||
+                        (rs == SHUTDOWN && firstTask == null)) {
+                        if (t.isAlive()) // precheck that t is startable
+                            throw new IllegalThreadStateException();
+                        workers.add(w);                                                 7.将新创建的worker放入数组中，因为有并发问题，所以这里在放之前使用了lock
+                        int s = workers.size();
+                        if (s > largestPoolSize)
+                            largestPoolSize = s;
+                        workerAdded = true;                                             8.更新标记位
+                    }
+                } finally {
+                    mainLock.unlock();
+                }
+                if (workerAdded) {
+                    t.start();                                                          9.worker开始执行任务
+                    workerStarted = true;
+                }
+            }
+        } finally {
+            if (! workerStarted)
+                addWorkerFailed(w);
+        }
+        return workerStarted;
+    }
+```
