@@ -211,3 +211,33 @@ final void runWorker(Worker w) {
     }
 ```
 ![image](https://github.com/niushihao/morningglory/blob/master/imange/runWorker.png)
+#### 2.2.6 清理worker
+```
+private void processWorkerExit(Worker w, boolean completedAbruptly) {
+        if (completedAbruptly) // If abrupt, then workerCount wasn't adjusted
+            decrementWorkerCount();
+
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();                                                        1.加锁，为了下边的集合操作
+        try {
+            completedTaskCount += w.completedTasks;
+            workers.remove(w);
+        } finally {
+            mainLock.unlock();
+        }
+
+        tryTerminate();                                                         2.尝试终止空闲worker(空闲的判断条件就是status = 0)
+
+        int c = ctl.get();
+        if (runStateLessThan(c, STOP)) {
+            if (!completedAbruptly) {
+                int min = allowCoreThreadTimeOut ? 0 : corePoolSize;            3.timeout的作用范围
+                if (min == 0 && ! workQueue.isEmpty())
+                    min = 1;
+                if (workerCountOf(c) >= min)
+                    return; // replacement not needed
+            }
+            addWorker(null, false);                                             4.小于核心线程数时 增加worker
+        }
+    }
+ ```
