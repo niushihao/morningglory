@@ -255,5 +255,69 @@ private void processWorkerExit(Worker w, boolean completedAbruptly) {
         b. 如果当前线程不是突然终止的，但当前线程数量 < 要维护的线程数量，addWorker()
     故如果调用线程池shutdown()，直到workQueue为空前，线程池都会维持corePoolSize个线程，然后再逐渐销毁这corePoolSize个线程
 
+#### 2.2.7 尝试终止线程池
+```
+final void tryTerminate() {
+    //这个for循环主要是和进入关闭线程池操作的CAS判断结合使用的
+    for (;;) {
+        int c = ctl.get();
+         
+        /**
+         * 线程池是否需要终止
+         * 如果以下3中情况任一为true，return，不进行终止
+         * 1、还在运行状态
+         * 2、状态是TIDYING、或 TERMINATED，已经终止过了
+         * 3、SHUTDOWN 且 workQueue不为空
+         */
+        if (isRunning(c) ||
+            runStateAtLeast(c, TIDYING) ||
+            (runStateOf(c) == SHUTDOWN && ! workQueue.isEmpty()))
+            return;
+         
+        /**
+         * 只有shutdown状态 且 workQueue为空，或者 stop状态能执行到这一步
+         * 如果此时线程池还有线程（正在运行任务，正在等待任务）
+         * 中断唤醒一个正在等任务的空闲worker
+         * 唤醒后再次判断线程池状态，会return null，进入processWorkerExit()流程
+         */
+        if (workerCountOf(c) != 0) { // Eligible to terminate 资格终止
+            interruptIdleWorkers(ONLY_ONE); //中断workers集合中的空闲任务，参数为true，只中断一个
+            return;
+        }
+ 
+        /**
+         * 如果状态是SHUTDOWN，workQueue也为空了，正在运行的worker也没有了，开始terminated
+         */
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            //CAS：将线程池的ctl变成TIDYING（所有的任务被终止，workCount为0，为此状态时将会调用terminated()方法），期间ctl有变化就会失败，会再次for循环
+            if (ctl.compareAndSet(c, ctlOf(TIDYING, 0))) {
+                try {
+                    terminated(); //需子类实现
+                } 
+                finally {
+                    ctl.set(ctlOf(TERMINATED, 0)); //将线程池的ctl变成TERMINATED
+                    termination.signalAll(); //唤醒调用了 等待线程池终止的线程 awaitTermination() 
+                }
+                return;
+            }
+        }
+        finally {
+            mainLock.unlock();
+        }
+        // else retry on failed CAS
+        // 如果上面的CAS判断false，再次循环
+    }
+}
+```
+1. 判断线程池是否需要进入终止流程（只有当shutdown状态+workQueue.isEmpty 或 stop状态，才需要）
+
+2. 判断线程池中是否还有线程，有则 interruptIdleWorkers(ONLY_ONE) 尝试中断一个空闲线程（正是这个逻辑可以再次发出中断信号，中断阻塞在获取任务的线程）
+
+3. 如果状态是SHUTDOWN，workQueue也为空了，正在运行的worker也没有了，开始terminated
+
+    会先上锁，将线程池置为tidying状态，之后调用需子类实现的 terminated()，最后线程池置为terminated状态，并唤醒所有等待线程池终止这个Condition的线程
+
 
            
