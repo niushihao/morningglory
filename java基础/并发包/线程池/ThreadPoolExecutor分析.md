@@ -241,3 +241,19 @@ private void processWorkerExit(Worker w, boolean completedAbruptly) {
         }
     }
  ```
+1. worker数量-1<br>
+        a. 如果是突然终止，说明是task执行时异常情况导致，即run()方法执行时发生了异常，那么正在工作的worker线程数量需要-1<br>
+        b. 如果不是突然终止，说明是worker线程没有task可执行了，不用-1，因为已经在getTask()方法中-1了
+2. 从Workers Set中移除worker，删除时需要上锁mainlock<br>
+3. tryTerminate()：在对线程池有负效益的操作时，都需要“尝试终止”线程池，大概逻辑：
+    判断线程池是否满足终止的状态<br>
+        a. 如果状态满足，但还有线程池还有线程，尝试对其发出中断响应，使其能进入退出流程<br>
+        b. 没有线程了，更新状态为tidying->terminated
+4. 是否需要增加worker线程，如果线程池还没有完全终止，仍需要保持一定数量的线程
+    线程池状态是running 或 shutdown<br>
+        a. 如果当前线程是突然终止的，addWorker()<br>
+        b. 如果当前线程不是突然终止的，但当前线程数量 < 要维护的线程数量，addWorker()
+    故如果调用线程池shutdown()，直到workQueue为空前，线程池都会维持corePoolSize个线程，然后再逐渐销毁这corePoolSize个线程
+
+
+           
