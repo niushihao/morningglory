@@ -135,4 +135,40 @@ public void run() {
             }
         }
 ```
-这里逻辑比较清晰，先判断当前任务是否为周期任务，如果不是，直接执行，如果是
+这里逻辑比较清晰，先判断当前任务是否为周期任务，如果不是，直接执行，如果是也是先执行并重置状态，但是多了下边两个方法
+```
+// 比较重要的方法，获取任务下次执行的时间
+private void setNextRunTime() {
+            long p = period;
+            /**
+              *如果大于0 ，下次执行时间就是上次执行时间+间隔周期
+              *而我们传的是个3 是大于0 的，所以我们可以确认scheduleAtFixedRate方法是按照固定周期执行的
+              *而不关心任务执行过程消耗的时间
+            if (p > 0)
+                time += p;
+            /**
+              *什么时候是小于0呢
+              *其实这就是scheduleWithFixedDelay 与 scheduleAtFixedRate唯一的不同点
+              *此时的下次执行时间是 当前时间+周期间隔，所以我们可以确认其实这就是scheduleWithFixedDelay是
+              *每次任务结束后 等待p(unit)在执行，也就是会受任务执行时间的影响
+            else
+                time = triggerTime(-p);
+        }
+```
+reExecutePeriodic方法名字应该能猜到，将任务下次执行时间计算好后有重新放入队列等待执行。
+```
+void reExecutePeriodic(RunnableScheduledFuture<?> task) {
+        if (canRunInCurrentRunState(true)) {
+            super.getQueue().add(task);
+            if (!canRunInCurrentRunState(true) && remove(task))
+                task.cancel(false);
+            else
+                ensurePrestart();
+        }
+    }
+```
+分析到这我们总结下流程：
+1. 创建线程池
+2. 提交任务后将任务变成ScheduledFutureTask类型，变调用父类的方法执行任务
+3. 重写执行逻辑，计算周期任务的下次执行时间，并重新放入队列等待执行
+其实到这逻辑大概清楚了，但是有一个非常重要的点就是放入的任务，如何保证按照可执行时间的先后顺序执行的呢，还记得初始化时默认指定了一个延迟队列么，其实就是在那里做了排序。下边看下DelayedWorkQueue
