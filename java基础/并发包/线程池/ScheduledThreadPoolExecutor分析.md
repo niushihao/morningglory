@@ -64,7 +64,7 @@ public ScheduledFuture<?> scheduleAtFixedRate(Runnable command,       // 可执�
         if (period <= 0)
             throw new IllegalArgumentException();
             
-        // 将任务包装成ScheduledFutureTask类型
+        // 将任务包装成ScheduledFutureTask类型，为什么要包装成这个对象呢，这个下边说
         ScheduledFutureTask<Void> sft =
             new ScheduledFutureTask<Void>(command,
                                           null,
@@ -106,11 +106,33 @@ private void delayedExecute(RunnableScheduledFuture<?> task) {
         /**
           *如果小于核心线程数，直接调用父类的addWorker
           *addWorker的流程还记得么，是创建一个工作线程(worker)，将任务放入worker，然后启动worker线程
-          *worker线程启动后会执行worker中的任务或者从队列取任务
-          *
+          *worker线程启动后会执行worker中的任务或者从队列取任务去执行
+          *这里设置一个null,说明worker启动后只能从队列去任务
+          *这里没有对wc > = corePoolSize做处理，是应为在上边方法中已经将任务先放入队列了
         if (wc < corePoolSize)
             addWorker(null, true);
         else if (wc == 0)
             addWorker(null, false);
     }
 ```
+如果只是看到这，我们没有发现任何和延迟处理有关的逻辑，那他是怎么做到的呢？还记得上边有个将我们提交的任务转化为ScheduledFutureTask类型的操作么，
+没错，这个对象不仅记录了一些必要参数外，还重写了run()方法，run()方法在addWorker后由父类调用，继续看下run()的代码
+```
+public void run() {
+            /**
+               *判断是否需要周期执行，判断条件就是这个属性 != 0,
+               *而调用executor.scheduleAtFixedRate(runnable,0,3,TimeUnit.SECONDS)的时候我们给他设置了3
+            */
+            boolean periodic = isPeriodic();
+            if (!canRunInCurrentRunState(periodic))
+                cancel(false);
+            // 如果不是周期任务，直接执行
+            else if (!periodic)
+                ScheduledFutureTask.super.run();
+            else if (ScheduledFutureTask.super.runAndReset()) {
+                setNextRunTime();
+                reExecutePeriodic(outerTask);
+            }
+        }
+```
+这里逻辑比较清晰，先判断当前任务是否为周期任务，如果不是，直接执行，如果是
