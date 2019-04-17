@@ -33,7 +33,7 @@
      */
     transient volatile int cellsBusy;
 ```
-实现原理就是当需要增加计数时，先尝试通过cas向base设置，如果成功直接返回，如果失败就初始化Cell数组，通过取模获取数组的索引，如果当前位置没有值就创建一个Cell并放入数组，如果有值就更新改值，最后统计结果的时候      
+实现原理就是当需要增加计数时，先尝试通过cas向base设置，如果成功直接返回，如果失败就初始化Cell数组，通过取模获取数组的索引，如果当前位置没有值就创建一个Cell并放入数组，如果有值就更新改值，最后统计结果的时候需要遍历所有Cell的值加上base的值。      
 ```
 final void longAccumulate(long x, LongBinaryOperator fn,
                               boolean wasUncontended) {
@@ -122,3 +122,20 @@ final void longAccumulate(long x, LongBinaryOperator fn,
     }
 
   ```  
+  ```
+  // 统计总数
+  public long sum() {
+        Cell[] as = cells; Cell a;
+        long sum = base;
+        if (as != null) {
+            for (int i = 0; i < as.length; ++i) {
+                if ((a = as[i]) != null)
+                    sum += a.value;
+            }
+        }
+        return sum;
+    }
+  ```
+## @sun.misc.Contended
+网上查了下这个注解的作用是处理为共享，目前没有理解，后续再补充
+               
