@@ -72,4 +72,72 @@ protected int tryAcquireShared(int arg) {
         throw new UnsupportedOperationException();
     }
 ```
-
+##### 2.1.2 addWaiter(Node mode)
+```
+private Node addWaiter(Node mode) {
+        // 创建一个给定模式(独占/共享)的节点
+        Node node = new Node(Thread.currentThread(), mode);
+        // 尝试直接在放在尾部节点，如果成功则返回
+        Node pred = tail;
+        if (pred != null) {
+            node.prev = pred;
+            if (compareAndSetTail(pred, node)) {
+                pred.next = node;
+                return node;
+            }
+        }
+        // Node还没有初始化或者cas失败执行
+        enq(node);
+        return node;
+    }
+ ```
+ ###### 2.1.2.1 enq(final Node node)
+ ```
+ private Node enq(final Node node) {
+        // 开启死循环
+        for (;;) {
+            Node t = tail;
+            // 如果尾部节点为空(还没有初始化)，则创建头部和尾部的节点
+            if (t == null) { // Must initialize
+                if (compareAndSetHead(new Node()))
+                    tail = head;
+            } else {
+                node.prev = t;
+                // 继续尝试将当前节点放入尾部节点，直到成功
+                if (compareAndSetTail(t, node)) {
+                    t.next = node;
+                    return t;
+                }
+            }
+        }
+    }
+```
+##### 2.1.3 acquireQueued(final Node node, int arg)
+```
+final boolean acquireQueued(final Node node, int arg) {
+        boolean failed = true;
+        try {
+            // 当前线程中断标记
+            boolean interrupted = false;
+            for (;;) {
+                // 尾部节点的前置节点
+                final Node p = node.predecessor();
+                // 如果前置节点为head节点，并且尝试获取资源成功(只有head节点线程释放锁才会成功)
+                if (p == head && tryAcquire(arg)) {
+                    // 将当前节点设置为head节点
+                    setHead(node);
+                    // 将head节点的后置节点至为null(从当前队列移除)
+                    p.next = null; // help GC
+                    failed = false;
+                    return interrupted;
+                }
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    parkAndCheckInterrupt())
+                    interrupted = true;
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+ ```
