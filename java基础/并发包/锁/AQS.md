@@ -120,7 +120,7 @@ final boolean acquireQueued(final Node node, int arg) {
             // 当前线程中断标记
             boolean interrupted = false;
             for (;;) {
-                // 尾部节点的前置节点
+                // 节点的前置节点
                 final Node p = node.predecessor();
                 // 如果前置节点为head节点，并且尝试获取资源成功(只有head节点线程释放锁才会成功)
                 if (p == head && tryAcquire(arg)) {
@@ -236,28 +236,40 @@ protected boolean tryRelease(int arg) {
 ```
 private void unparkSuccessor(Node node) {
         /*
-         * If status is negative (i.e., possibly needing signal) try
-         * to clear in anticipation of signalling.  It is OK if this
-         * fails or if status is changed by waiting thread.
+         * 改变节点的状态
          */
         int ws = node.waitStatus;
         if (ws < 0)
             compareAndSetWaitStatus(node, ws, 0);
-
-        /*
-         * Thread to unpark is held in successor, which is normally
-         * just the next node.  But if cancelled or apparently null,
-         * traverse backwards from tail to find the actual
-         * non-cancelled successor.
-         */
+            
         Node s = node.next;
         if (s == null || s.waitStatus > 0) {
             s = null;
+            // 如果头节点的后置节点为null，则倒排查询出最前边的没有被取消的节点
             for (Node t = tail; t != null && t != node; t = t.prev)
                 if (t.waitStatus <= 0)
                     s = t;
         }
+        // 唤醒后置节点中被阻塞的线程
         if (s != null)
             LockSupport.unpark(s.thread);
     }
  ```
+##### 2.2.3 release(int arg)总结
+1. 尝试释放资源，失败直接返回
+2. 唤醒head节点后第一个需要被唤醒(waitStatus < 0)的节点<br>
+
+这里在回想下acquireQueued()方法，release方法唤醒了后置节点的线程，然后它继续判断，此时他的前置节点为head节点，如果尝试获取资源成功，说明release中的tryRelease（将state变为0）已经成功，所以讲自己设为head节点，然后这个方法返回，此线程就结束了在AQS中的等待旅程，开始做自己的事情了。
+```
+// 节点的前置节点
+final Node p = node.predecessor();
+// 如果前置节点为head节点，并且尝试获取资源成功(只有head节点线程释放锁才会成功)
+if (p == head && tryAcquire(arg)) {
+    // 将当前节点设置为head节点
+    setHead(node);
+    // 将head节点的后置节点至为null(从当前队列移除)
+    p.next = null; // help GC
+    failed = false;
+    return interrupted;
+}
+```
