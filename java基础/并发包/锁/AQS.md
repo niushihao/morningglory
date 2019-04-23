@@ -206,5 +206,58 @@ private final boolean parkAndCheckInterrupt() {
 4. 重试以上步骤 知道步骤1成功方法
 4. 重试以上步骤 知道步骤1成功
 ##### 2.1.5 acquire(int arg)总结
-1. 尝试获取资源，有子类实现
+1. 尝试获取资源，由子类实现
 2. 自旋直到线程成功获取资源，并返回当前线程是否被中断。如果没有被中断，则获取资源成功，否则进行自我中断。
+![image](https://github.com/niushihao/morningglory/blob/master/imange/acquire.png)
+这也就是ReentrantLock.lock()的流程，不信你去看其lock()源码吧，整个函数就是一条acquire(1)！！！
+
+#### 2.2 release(int arg)
+```
+public final boolean release(int arg) {
+        // 尝试释放资源
+        if (tryRelease(arg)) {
+            Node h = head;
+            if (h != null && h.waitStatus != 0)
+                // 唤醒后置节点的线程
+                unparkSuccessor(h);
+            return true;
+        }
+        return false;
+    }
+```
+##### 2.2.1 tryRelease(arg)
+```
+protected boolean tryRelease(int arg) {
+        throw new UnsupportedOperationException();
+    }
+```
+和之前套路一致，也是由子类实现
+##### 2.2.2 unparkSuccessor(h)
+```
+private void unparkSuccessor(Node node) {
+        /*
+         * If status is negative (i.e., possibly needing signal) try
+         * to clear in anticipation of signalling.  It is OK if this
+         * fails or if status is changed by waiting thread.
+         */
+        int ws = node.waitStatus;
+        if (ws < 0)
+            compareAndSetWaitStatus(node, ws, 0);
+
+        /*
+         * Thread to unpark is held in successor, which is normally
+         * just the next node.  But if cancelled or apparently null,
+         * traverse backwards from tail to find the actual
+         * non-cancelled successor.
+         */
+        Node s = node.next;
+        if (s == null || s.waitStatus > 0) {
+            s = null;
+            for (Node t = tail; t != null && t != node; t = t.prev)
+                if (t.waitStatus <= 0)
+                    s = t;
+        }
+        if (s != null)
+            LockSupport.unpark(s.thread);
+    }
+ ```
