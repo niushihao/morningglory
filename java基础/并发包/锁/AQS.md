@@ -38,7 +38,7 @@ static final class Node {
         。。。。
  }
  ```
- 上边只是说了AQS中的属性值，可能此时还不能理解他到底是怎么工作的，为了方便，我们还是结合一个具体的是用场景进行分析。
+ ### AbstractQueuedSynchronizer获取资源的方法
  
 
 
