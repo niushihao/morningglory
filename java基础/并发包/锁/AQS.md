@@ -52,3 +52,24 @@ static final class Node {
 一般来说，自定义同步器要么是独占方法，要么是共享方式，他们也只需实现tryAcquire-tryRelease、tryAcquireShared-tryReleaseShared中的一种即可。但AQS也支持自定义同步器同时实现独占和共享两种方式，如ReentrantReadWriteLock。
 ### 2、源码分析
 依照acquire-release、acquireShared-releaseShared的次序来。
+#### 2.1 acquire(int arg)
+```
+public final void acquire(int arg) {
+        if (!tryAcquire(arg) &&
+            acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+            selfInterrupt();
+    }
+```
+函数执行流程
+1. tryAcquire(arg)尝试获取资源，如果成功直接返回
+2. 将任务标记为独占方式，并放入队列尾部
+3. 自旋获取资源，返回当前线程释放被中断标记
+4. 如果线程在等待过程中被中断过，它是不响应的。只是获取资源后才再进行自我中断selfInterrupt()，将中断补上。
+##### 2.1.1 tryAcquire(int arg)
+```
+// 具体是由子类实现的
+protected int tryAcquireShared(int arg) {
+        throw new UnsupportedOperationException();
+    }
+```
+
