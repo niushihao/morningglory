@@ -2,7 +2,7 @@
 ### 目录
 * [1、AbstractQueuedSynchronizer](#AbstractQueuedSynchronizer)
     * [1.1、AbstractQueuedSynchronizer拥有的属性](#AbstractQueuedSynchronizer拥有的属性)
-    * [1.2、AbstractQueuedSynchronizer获取资源的方法](#AbstractQueuedSynchronizer获取资源的方法)
+    * [1.2、AbstractQueuedSynchronizer获取资源的方法](#11abstractqueuedsynchronizer拥有的属性)
     * [1.3、借用大佬一个非常好的概括](#借用大佬一个非常好的概括)
 * [2、源码分析]()
     * [2.1 acquire(int arg)]()
