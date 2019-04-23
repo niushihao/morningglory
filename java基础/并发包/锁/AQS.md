@@ -131,13 +131,80 @@ final boolean acquireQueued(final Node node, int arg) {
                     failed = false;
                     return interrupted;
                 }
+                // 判断当前线程是否应该被阻塞
                 if (shouldParkAfterFailedAcquire(p, node) &&
+                    // 将当前线程阻塞并判断线程是否已经被中断
                     parkAndCheckInterrupt())
+                    // 设置线程中断标记
                     interrupted = true;
             }
         } finally {
+            // 异常终止时，取消当前node节点竞争资源
             if (failed)
                 cancelAcquire(node);
         }
     }
  ```
+###### 2.1.3.1 shouldParkAfterFailedAcquire(p, node)
+```
+// 方法如果返回false,将会一直循环调用
+private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+        /**
+          * 前置节点的状态
+          * CANCELLED =  1 代表已取消
+          * SIGNAL = -1 代表等待被唤醒
+          * CONDITION = -2 和condition配合使用
+          * PROPAGATE = -3 代表无条件传播
+        int ws = pred.waitStatus;
+        // 等待被唤醒
+        if (ws == Node.SIGNAL)
+            /*
+             * This node has already set status asking a release
+             * to signal it, so it can safely park.
+             */
+            return true;
+        // 节点已被取消
+        if (ws > 0) {
+            /*
+             * Predecessor was cancelled. Skip over predecessors and
+             * indicate retry.
+             * 一直向前寻找，知道找到一个没有被取消的节点(这中间被取消的节点会从队列中移除)
+             */
+            do {
+                node.prev = pred = pred.prev;
+            } while (pred.waitStatus > 0);
+            pred.next = node;
+        } else {
+            /*
+             * waitStatus must be 0 or PROPAGATE.  Indicate that we
+             * need a signal, but don't park yet.  Caller will need to
+             * retry to make sure it cannot acquire before parking.
+             * 将前置节点的状态至为SIGNAL
+             */
+            compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+        }
+        return false;
+    }
+```
+整个流程其实就是要找到一个没有被取消的前置节点，并且将前置节点的状态设置为SIGNAL，用来告诉前置节点获取到资源后通知自己，然后自己就可以安心休息了
+，该方法返回false会一直重复执行，返回true,会执行parkAndCheckInterrupt()
+###### 2.1.3.2 parkAndCheckInterrupt()
+```
+private final boolean parkAndCheckInterrupt() {
+        // 阻塞当前线程
+        LockSupport.park(this);
+        // 返回当前线程是否被中断，并重置中断状态
+        return Thread.interrupted();
+    }
+```
+##### 2.1.4 acquireQueued(final Node node, int arg)总结
+1. 尝试将当前阶段放入尾部节点，如果成功直接返回
+2. 寻找没有被取消的前置节点(同时清理已取消的前置节点)，设置其状态为SIGNAL，用来获取资源后通知自己
+3. 阻塞当前线程，返回线程释放被中断标记
+4. 重试以上步骤 知道步骤1成功
+5. 如果方法异常终止，则将当前节点从队列移除。
+4. 重试以上步骤 知道步骤1成功方法
+4. 重试以上步骤 知道步骤1成功
+##### 2.1.5 acquire(int arg)总结
+1. 尝试获取资源，有子类实现
+2. 自旋直到线程成功获取资源，并返回当前线程是否被中断。如果没有被中断，则获取资源成功，否则进行自我中断。
