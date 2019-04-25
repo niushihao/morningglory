@@ -18,6 +18,10 @@
         * [2.2.1、 tryRelease(arg)](#221-tryreleasearg)
         * [2.2.2、 unparkSuccessor(h)](#222-unparksuccessorh)
         * [2.2.3、 release(int arg)总结](#223-releaseint-arg总结)
+    * [2.3、 acquireShared(int arg)](#21-acquireint-arg)
+        * [2.1.1、 doAcquireShared(arg)](#211-tryacquireint-arg)
+        * [2.1.2、 setHeadAndPropagate(node, r)](#212-addwaiternode-mode)
+    * [2.4、 releaseShared(int arg)](#21-acquireint-arg)
 
 ### 1、AbstractQueuedSynchronizer
 它是一个抽象队列同步器，这个对象我还没有直接用到过，但是它却是juc的基础，因为他是Lock,CountDownLatch的底层实现，所以还是要了解这个对象的功能。
@@ -384,3 +388,5 @@ private void setHeadAndPropagate(Node node, int propagate) {
 3. 获取成功后，将当前节点设置为头结点，并且根据tryAcquireShared返回值 > 0决定是否唤醒后记节点(但是这个判断都是用 ||，所以会出现即使==0也会唤醒一些不必要的节点)
 4. 获取失败，和独占模式处理相同。
 所以综合看，就比独占模式多了一步释放后续节点的操作(虽然判断条件有点宽)，也是就只要tryAcquireShared返回值 > 0，队列中的多个节点是可以并发运行的。毕竟是获取共享资源。
+#### 2.4 releaseShared(int arg)
+此方法在acquireShared(int arg)中已经说过，不在重复。
