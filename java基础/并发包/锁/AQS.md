@@ -319,7 +319,7 @@ private void doAcquireShared(int arg) {
                     // 再次尝试获取资源
                     int r = tryAcquireShared(arg);
                     if (r >= 0) {
-                        // 
+                        // 设置新的头结点，并根据r释放资源
                         setHeadAndPropagate(node, r);
                         p.next = null; // help GC
                         if (interrupted)
@@ -328,6 +328,7 @@ private void doAcquireShared(int arg) {
                         return;
                     }
                 }
+                // 与独占模式相同
                 if (shouldParkAfterFailedAcquire(p, node) &&
                     parkAndCheckInterrupt())
                     interrupted = true;
@@ -337,4 +338,42 @@ private void doAcquireShared(int arg) {
                 cancelAcquire(node);
         }
     }
+```
+这个方法大体上和独占处理方式是一样的，不同点就是setHeadAndPropagate(node, r)方法，而且这个方法用到了tryAcquireShared的返回值，所以为了搞清楚这个返回值和tryAcquire返回的boolean的区别，还得往下看。
+###### 2.3.1.1 setHeadAndPropagate(node, r)
+```
+private void setHeadAndPropagate(Node node, int propagate) {
+        Node h = head; // Record old head for check below
+        // 将当前节点设置为头节点
+        setHead(node);
+        // 只有tryAcquireShared返回值 > 0或者waitStatus < 0才继续
+        if (propagate > 0 || h == null || h.waitStatus < 0 ||
+            (h = head) == null || h.waitStatus < 0) {
+            Node s = node.next;
+            // 只有后置节点是共享类型，就唤醒
+            if (s == null || s.isShared())
+                // 唤醒节点
+                doReleaseShared();
+        }
+    }
+    
+ private void doReleaseShared() {
+        for (;;) {
+            Node h = head;
+            if (h != null && h != tail) {
+                int ws = h.waitStatus;
+                if (ws == Node.SIGNAL) {
+                    if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))
+                        continue;            // loop to recheck cases
+                    unparkSuccessor(h);
+                }
+                else if (ws == 0 &&
+                         !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
+                    continue;                // loop on failed CAS
+            }
+            if (h == head)                   // loop if head changed
+                break;
+        }
+    }
+
 ```
