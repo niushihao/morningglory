@@ -23,6 +23,7 @@
             * [2.3.1.1、 setHeadAndPropagate(node, r)](#2311-setheadandpropagatenode-r)
         * [2.3.3、 doAcquireShared(arg)总结](#232-doacquiresharedarg总结)
     * [2.4、 releaseShared(int arg)](#24-releasesharedint-arg)
+    * [2.4、其他](#25-其他)
 
 ### 1、AbstractQueuedSynchronizer
 它是一个抽象队列同步器，这个对象我还没有直接用到过，但是它却是juc的基础，因为他是Lock,CountDownLatch的底层实现，所以还是要了解这个对象的功能。
