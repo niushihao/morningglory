@@ -391,3 +391,7 @@ private void setHeadAndPropagate(Node node, int propagate) {
 所以综合看，就比独占模式多了一步释放后续节点的操作(虽然判断条件有点宽)，也是就只要tryAcquireShared返回值 > 0，队列中的多个节点是可以并发运行的。毕竟是获取共享资源。
 #### 2.4 releaseShared(int arg)
 此方法在acquireShared(int arg)中已经说过，不在重复。
+#### 2.5 其他
+此外AQS还有获取资源方式 
+1. acquireInterruptibly(int arg)，之前的两种方式都是在节点获取资源后才会响应中断，这个的区别是在自旋的时候发现线程被中断时就会抛异常。
+2. tryAcquireNanos(int arg, long nanosTimeout) 在获取资源失败后线程会wait指定的时间，如果超时仍没有获取资源，则返回false。
