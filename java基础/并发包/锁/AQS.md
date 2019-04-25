@@ -20,7 +20,7 @@
         * [2.2.3、 release(int arg)总结](#223-releaseint-arg总结)
     * [2.3、 acquireShared(int arg)](#23-acquiresharedint-arg)
         * [2.3.1、 doAcquireShared(arg)](#231-doacquiresharedarg)
-        * [2.3.2、 setHeadAndPropagate(node, r)](#2311-setheadandpropagatenode-r)
+            * [2.3.1.1、 setHeadAndPropagate(node, r)](#2311-setheadandpropagatenode-r)
         * [2.3.3、 doAcquireShared(arg)总结]#232-doacquiresharedarg总结)
     * [2.4、 releaseShared(int arg)](#24-releasesharedint-arg)
 
