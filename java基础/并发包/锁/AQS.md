@@ -297,8 +297,44 @@ if (p == head && tryAcquire(arg)) {
 #### 2.3 acquireShared(int arg)
 ```
 public final void acquireShared(int arg) {
-        // 
+        // 尝试获取资源
         if (tryAcquireShared(arg) < 0)
+            // 获取失败后进入队列
             doAcquireShared(arg);
+    }
+```
+此处看不到太多细节，但是独占模式的tryAcquire是返回boolean,而共享模式的tryAcquireShared是返回一个数字，这有什么区别呢，我们继续进入doAcquireShared找答案。
+##### 2.3.1 doAcquireShared(arg)
+```
+private void doAcquireShared(int arg) {
+        // 以共享模式加入队列
+        final Node node = addWaiter(Node.SHARED);
+        boolean failed = true;
+        try {
+            boolean interrupted = false;
+            for (;;) {
+                // 获取前驱节点
+                final Node p = node.predecessor();
+                if (p == head) {
+                    // 再次尝试获取资源
+                    int r = tryAcquireShared(arg);
+                    if (r >= 0) {
+                        // 
+                        setHeadAndPropagate(node, r);
+                        p.next = null; // help GC
+                        if (interrupted)
+                            selfInterrupt();
+                        failed = false;
+                        return;
+                    }
+                }
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    parkAndCheckInterrupt())
+                    interrupted = true;
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
     }
 ```
