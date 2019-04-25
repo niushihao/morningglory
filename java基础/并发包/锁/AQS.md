@@ -347,6 +347,7 @@ private void setHeadAndPropagate(Node node, int propagate) {
         // 将当前节点设置为头节点
         setHead(node);
         // 只有tryAcquireShared返回值 > 0或者waitStatus < 0才继续
+        // 这也是共享模式比独占模式多的逻辑
         if (propagate > 0 || h == null || h.waitStatus < 0 ||
             (h = head) == null || h.waitStatus < 0) {
             Node s = node.next;
@@ -356,7 +357,7 @@ private void setHeadAndPropagate(Node node, int propagate) {
                 doReleaseShared();
         }
     }
-    
+ // releaseShared(int arg)用的就是这个方法   
  private void doReleaseShared() {
         for (;;) {
             Node h = head;
@@ -377,3 +378,9 @@ private void setHeadAndPropagate(Node node, int propagate) {
     }
 
 ```
+##### 2.3.2 doAcquireShared(arg)总结
+1. 以共享模式放入等待队列
+2. 如果前置节点是头结点，再次尝试获取资源
+3. 获取成功后，将当前节点设置为头结点，并且根据tryAcquireShared返回值 > 0决定是否唤醒后记节点(但是这个判断都是用 ||，所以会出现即使==0也会唤醒一些不必要的节点)
+4. 获取失败，和独占模式处理相同。
+所以综合看，就比独占模式多了一步释放后续节点的操作(虽然判断条件有点宽)，也是就只要tryAcquireShared返回值 > 0，队列中的多个节点是可以并发运行的。毕竟是获取共享资源。
