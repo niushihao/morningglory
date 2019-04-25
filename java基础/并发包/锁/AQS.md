@@ -294,3 +294,11 @@ if (p == head && tryAcquire(arg)) {
     return interrupted;
 }
 ```
+#### 2.3 acquireShared(int arg)
+```
+public final void acquireShared(int arg) {
+        // 
+        if (tryAcquireShared(arg) < 0)
+            doAcquireShared(arg);
+    }
+```
