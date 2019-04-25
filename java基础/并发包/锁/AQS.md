@@ -18,10 +18,11 @@
         * [2.2.1、 tryRelease(arg)](#221-tryreleasearg)
         * [2.2.2、 unparkSuccessor(h)](#222-unparksuccessorh)
         * [2.2.3、 release(int arg)总结](#223-releaseint-arg总结)
-    * [2.3、 acquireShared(int arg)](#21-acquireint-arg)
-        * [2.1.1、 doAcquireShared(arg)](#211-tryacquireint-arg)
-        * [2.1.2、 setHeadAndPropagate(node, r)](#212-addwaiternode-mode)
-    * [2.4、 releaseShared(int arg)](#21-acquireint-arg)
+    * [2.3、 acquireShared(int arg)](#23-acquiresharedint-arg)
+        * [2.3.1、 doAcquireShared(arg)](#231-doacquiresharedarg)
+        * [2.3.2、 setHeadAndPropagate(node, r)](#2311-setheadandpropagatenode-r)
+        * [2.3.3、 doAcquireShared(arg)总结]#232-doacquiresharedarg总结)
+    * [2.4、 releaseShared(int arg)](#24-releasesharedint-arg)
 
 ### 1、AbstractQueuedSynchronizer
 它是一个抽象队列同步器，这个对象我还没有直接用到过，但是它却是juc的基础，因为他是Lock,CountDownLatch的底层实现，所以还是要了解这个对象的功能。
