@@ -428,8 +428,44 @@ public final void await() throws InterruptedException {
 1. 创建阻塞节点，并放入阻塞队列
 2. 释放锁资源，其实就是将当前的头节点从同步队列移除，如果移除失败就将当前阻塞节点的状态设置为CANCELLED（具体移除的逻辑就是直接调用release方法释放锁因为await方法在拥有锁的情况下才能调用，而拥有锁的在独占模式下只能是头结点）
 3. 加入阻塞队列后正常会被阻塞知道被唤醒，但是可能刚放入阻塞队列就被唤醒了，所以这里有个判断是否在同步队列
-4. 被唤醒以后将自旋尝试获取资源
+4. 被唤醒以后将自旋尝试获取资源（我们也可以猜想在被唤醒时，这个节点会被重新放入同步队列）
 5. 对中断的处理，一种是抛异常，一种是使自身重新中断。
+#### 2.6 signal()
+```
+public final void signal() {
+   // 判断拥有锁的线程是不是当前线程，如果不是抛异常
+   if (!isHeldExclusively())
+       throw new IllegalMonitorStateException();
+   Node first = firstWaiter;
+   if (first != null)
+       // 执行唤醒逻辑
+       doSignal(first);
+}
+```
+// 执行唤醒的逻辑
+```
+private void doSignal(Node first) {
+   do {
+       if ( (firstWaiter = first.nextWaiter) == null)
+           lastWaiter = null;
+       first.nextWaiter = null;
+   } while (!transferForSignal(first) &&
+            (first = firstWaiter) != null);
+}
+
+// 核心逻辑还在transferForSignal()方法中
+final boolean transferForSignal(Node node) {
+     // cas变更状态
+     if (!compareAndSetWaitStatus(node, Node.CONDITION, 0))
+         return false;
+     // 放入同步队列尾部(验证了上边的猜想)
+     Node p = enq(node);
+     int ws = p.waitStatus;
+     if (ws > 0 || !compareAndSetWaitStatus(p, ws, Node.SIGNAL))
+         LockSupport.unpark(node.thread);
+     return true;
+ }
+```
 #### 2.7 其他
 此外AQS还有获取资源方式 
 1. acquireInterruptibly(int arg)，之前的两种方式都是在节点获取资源后才会响应中断，这个的区别是在自旋的时候发现线程被中断时就会抛异常。
