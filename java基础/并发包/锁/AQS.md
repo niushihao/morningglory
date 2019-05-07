@@ -394,7 +394,43 @@ private void setHeadAndPropagate(Node node, int propagate) {
 所以综合看，就比独占模式多了一步释放后续节点的操作(虽然判断条件有点宽)，也是就只要tryAcquireShared返回值 > 0，队列中的多个节点是可以并发运行的。毕竟是获取共享资源。
 #### 2.4 releaseShared(int arg)
 此方法在acquireShared(int arg)中已经说过，不在重复。
-#### 2.5 其他
+#### 2.5 await()
+Condition有几个类似作用的方法，如awaitUninterruptibly()、awaitNanos(long nanosTimeout)等等
+```
+public final void await() throws InterruptedException {
+   // 如果线程被中断就抛异常
+   if (Thread.interrupted())
+       throw new InterruptedException();
+   // 创建阻塞节点，并维护阻塞队列（获取资源失败时放入的队列我们叫他同步队列）
+   Node node = addConditionWaiter();
+   // 从同步队列中将当前节点去掉
+   int savedState = fullyRelease(node);
+   int interruptMode = 0;
+   // 如果这个阻塞节点不在同步队列就阻塞住，等待被唤醒
+   while (!isOnSyncQueue(node)) {
+       LockSupport.park(this);
+       if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
+           break;
+   }
+   // 被唤醒以后将节点重新放入同步队列尾部
+   if (acquireQueued(node, savedState) && interruptMode != THROW_IE)
+       interruptMode = REINTERRUPT;
+   if (node.nextWaiter != null) // clean up if cancelled
+       unlinkCancelledWaiters();
+ 
+   if (interruptMode != 0)
+       // 处理中断的情况
+       reportInterruptAfterWait(interruptMode);
+}
+
+```
+逻辑比较清晰，大致步骤如下
+1. 创建阻塞节点，并放入阻塞队列
+2. 释放锁资源，其实就是将当前的头节点从同步队列移除，如果移除失败就将当前阻塞节点的状态设置为CANCELLED（具体移除的逻辑就是直接调用release方法释放锁因为await方法在拥有锁的情况下才能调用，而拥有锁的在独占模式下只能是头结点）
+3. 加入阻塞队列后正常会被阻塞知道被唤醒，但是可能刚放入阻塞队列就被唤醒了，所以这里有个判断是否在同步队列
+4. 被唤醒以后将自旋尝试获取资源
+5. 对中断的处理，一种是抛异常，一种是使自身重新中断。
+#### 2.7 其他
 此外AQS还有获取资源方式 
 1. acquireInterruptibly(int arg)，之前的两种方式都是在节点获取资源后才会响应中断，这个的区别是在自旋的时候发现线程被中断时就会抛异常。
 2. tryAcquireNanos(int arg, long nanosTimeout) 在获取资源失败后线程会wait指定的时间，如果超时仍没有获取资源，则返回false。
