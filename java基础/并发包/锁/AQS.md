@@ -461,6 +461,7 @@ final boolean transferForSignal(Node node) {
      // 放入同步队列尾部(验证了上边的猜想)
      Node p = enq(node);
      int ws = p.waitStatus;
+     // 有个细节并不是调用doSignal后就会唤醒当前节点
      if (ws > 0 || !compareAndSetWaitStatus(p, ws, Node.SIGNAL))
          LockSupport.unpark(node.thread);
      return true;
