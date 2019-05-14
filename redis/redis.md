@@ -22,6 +22,9 @@ eg: 设置一个整数时，type 为string,编码为int;当字符串长度小于
 |REDIS_SET	|REDIS_ENCODING_HT	|使用字典实现的集合对象。|
 |REDIS_ZSET	|REDIS_ENCODING_ZIPLIST	|使用压缩列表实现的有序集合对象。|
 |REDIS_ZSET	|REDIS_ENCODING_SKIPLIST	|使用跳跃表和字典实现的有序集合对象。|
+可以看到压缩列表是很多基本类型的默认实现，简单记录下压缩列表的结构
+### 压缩列表 zipList
+
 ## redis数据库结构 redisDB
 主要包含两个属性
 1. dict 字典类型，保存当前数据库所有键值对
