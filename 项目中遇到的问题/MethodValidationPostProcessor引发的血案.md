@@ -1,5 +1,5 @@
 
-本篇是基于参数校验不生效的问题续集，关于参数校验不生效的问题可以看上一篇
+本篇是基于参数校验不生效的问题续集，关于参数校验不生效的问题可以看上一篇【[参数校验不生效](https://github.com/niushihao/morningglory/blob/master/%E9%A1%B9%E7%9B%AE%E4%B8%AD%E9%81%87%E5%88%B0%E7%9A%84%E9%97%AE%E9%A2%98/%E5%8F%82%E6%95%B0%E6%A0%A1%E9%AA%8C%E4%B8%8D%E7%94%9F%E6%95%88.md)】
 ## MethodValidationPostProcessor引发的血案
 上一篇说了在service中参数校验之所以不生效是因为没有校验的切入点(没有对应@Validated的PointCut),但是在项目中加入BeanPostProcessor类型的对象时还有个特别需要注意的地方。
 ### 问题描述
