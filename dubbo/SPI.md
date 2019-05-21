@@ -21,8 +21,8 @@ public static <T> ExtensionLoader<T> getExtensionLoader(Class<T> type) {
                 ") is not an extension, because it is NOT annotated with @" + SPI.class.getSimpleName() + "!");
     }
 	/**
-		*根据代码逻辑看出每个type下的ExtensionLoader是个单利，但是奇怪为什么没有使用双重校验加锁的方式
-		*只做了一次校验，虽然有putIfAbsent保证map中不会有脏数据，但是还是有可能创建了多个ExtensionLoader的实例
+	*根据代码逻辑看出每个type下的ExtensionLoader是个单利，但是奇怪为什么没有使用双重校验加锁的方式
+	*只做了一次校验，虽然有putIfAbsent保证map中不会有脏数据，但是还是有可能创建了多个ExtensionLoader的实例
 	*/
     ExtensionLoader<T> loader = (ExtensionLoader<T>) EXTENSION_LOADERS.get(type);
     if (loader == null) {
@@ -34,7 +34,7 @@ public static <T> ExtensionLoader<T> getExtensionLoader(Class<T> type) {
 ```
 里边提供了很多扩展方法，目前我只看了两个方法，后边在补充其他的
 
-###1. 根据扩展名加载扩展实例
+### 1. 根据扩展名加载扩展实例
 #### 1.1 使用demo
 ```java
 // 配置文件
@@ -158,8 +158,8 @@ private void loadClass(Map<String, Class<?>> extensionClasses, java.net.URL reso
 
 ```
 
-###2. 自适应扩展
-####2.1 使用demo
+### 2. 自适应扩展
+#### 2.1 使用demo
 ```
 // 配置文件
 dubbo=org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol
